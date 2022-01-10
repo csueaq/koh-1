@@ -1,50 +1,67 @@
-import React, { Component } from "react"
-import logo from "./logo.svg"
-import "./App.css"
+import './App.css';
+import UserProfileSelector from './component/userProfileSelector'
+import Rails from './component/rails'
+import React, { useState, useEffect } from 'react';
 
-class LambdaDemo extends Component {
-  constructor(props) {
-    super(props)
-    this.state = { loading: false, msg: null }
-  }
+import * as Session from './util/session'
+import * as Store from './util/store'
+import * as Mapping from './util/mapping'
+import persona from "./component/profile/persona";
+import pokemon from "./component/profile/pokemon";
 
-  handleClick = api => e => {
-    e.preventDefault()
-
-    this.setState({ loading: true })
-    fetch("/.netlify/functions/" + api)
-      .then(response => response.json())
-      .then(json => this.setState({ loading: false, msg: json.msg }))
-  }
-
-  render() {
-    const { loading, msg } = this.state
-
-    return (
-      <p>
-        <button onClick={this.handleClick("hello")}>{loading ? "Loading..." : "Call Lambda"}</button>
-        <button onClick={this.handleClick("async-dadjoke")}>{loading ? "Loading..." : "Call Async Lambda"}</button>
-        <br />
-        <span>{msg}</span>
-      </p>
-    )
-  }
+const handleReset = (setSession, setProfile,setCounter) => {
+  Store.Reset()
+  setSession("")
+  setProfile(null)
+  setCounter(null)
 }
 
-class App extends Component {
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <LambdaDemo />
-        </header>
-      </div>
-    )
-  }
+const getProfileString = (profile) => {
+  if(profile)
+    return `${persona}-${pokemon}`
+  else return ""
+}
+function App() {
+  const [counter, setCounter] = useState(null);
+  const [session, setSession] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // check session
+    if (!Store.GetStoredSession()) {
+      Store.CreateStoredSession(Session.GetSession())
+    }
+
+    setSession(Store.GetStoredSession())
+
+    // check profile
+    if (Store.GetStoredProfile()) {
+      setProfile(Store.GetStoredProfile())
+    }
+
+    if (profile) {
+      setIsLoading(true)
+      Mapping.getExperimentTreatmentsForSegments(Mapping.railOrderExp)
+          .then(data => {
+            setCounter({
+              [Mapping.railOrderExp]:Mapping.getSegmentCounter(Mapping.railOrderExp, data.data, profile)})
+            setIsLoading(false)
+          })
+    }
+
+  },[session, getProfileString(profile)])
+
+
+  return (
+      isLoading ? <h1>LOADING....</h1> :
+          <div className="App">
+            {!profile && <UserProfileSelector session={session} setProfile={setProfile}/>}
+            {counter && <Rails profile={profile} counter={counter}/>}
+            <h1>{session}</h1>
+            <button onClick={()=>handleReset(setSession, setProfile,setCounter)}>Reset</button>
+          </div>
+  );
 }
 
-export default App
+export default App;
